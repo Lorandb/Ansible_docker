@@ -1,0 +1,84 @@
+---
+- hosts: servers
+  vars:
+    - portnumber: '{{ port_number }}'
+  become: true
+  tasks:
+  - name: Install aptitude
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: true
+
+  - name: Install required system packages
+    apt:
+      pkg:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python3-pip
+        - virtualenv
+        - python3-setuptools
+      state: latest
+      update_cache: true
+
+  - name: Add Docker GPG apt key
+    apt_key:
+     url: https://download.docker.com/linux/ubuntu/gpg
+      
+
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu focal stable
+      
+
+  - name: Update apt and install docker
+    apt:
+      name: docker-ce
+      state: latest
+      update_cache: true
+
+  - name: Install DOcker Module for Python
+    pip:
+      name: docker, docker-compose
+  
+  - name: Install docker compose
+    apt:
+      name: docker-compose-plugin
+      update_cache: true
+  
+  - name: Clone Github repository
+    git:
+      repo: https://github.com/docker/getting-started.git
+      dest: /root/getting-started
+      clone: yes
+      update: yes
+  - name: Compose run
+    docker_compose:
+      project_name: To-do-app
+      definition:
+        version: '3.7'
+        services:
+          mysql:
+            image: mysql:5.7
+            ports:
+              - 3306:3306
+            volumes:
+              - /todo-mysql-data:/var/lib/mysql
+            environment:
+              MYSQL_ROOT_PASSWORD: secret
+              MYSQL_DATABASE: todos
+          web:    
+            image: node:12-alpine
+            working_dir: /app
+            volumes:
+            - /root/getting-started/app:/app
+            command: sh -c "yarn install && yarn run dev"
+            ports: 
+              - "{{ portnumber }}:3000"      
+            environment:
+              MYSQL_HOST: mysql
+              MYSQL_USER: root
+              MYSQL_PASSWORD: secret
+              MYSQL_DB: todos
